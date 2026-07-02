@@ -13,6 +13,7 @@ import (
 
 	"github.com/gardener/gardener/pkg/utils"
 	"github.com/pkg/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
 	tmv1beta1 "github.com/gardener/test-infra/pkg/apis/testmachinery/v1beta1"
@@ -24,6 +25,26 @@ func addAnnotationsToTestrun(tr *tmv1beta1.Testrun, annotations map[string]strin
 		return
 	}
 	tr.Annotations = utils.MergeStringMaps(tr.Annotations, annotations)
+}
+
+// addShootAnnotationsFromConfig promotes SHOOT_NAME and PROJECT_NAMESPACE from
+// spec.config into well-known annotations so the dashboard can link to the shoot.
+func addShootAnnotationsFromConfig(tr *tmv1beta1.Testrun) {
+	if tr == nil {
+		return
+	}
+	for _, c := range tr.Spec.Config {
+		switch c.Name {
+		case "SHOOT_NAME":
+			if _, exists := tr.Annotations["shoot.name"]; !exists {
+				metav1.SetMetaDataAnnotation(&tr.ObjectMeta, "shoot.name", c.Value)
+			}
+		case "PROJECT_NAMESPACE":
+			if _, exists := tr.Annotations["shoot.projectNamespace"]; !exists {
+				metav1.SetMetaDataAnnotation(&tr.ObjectMeta, "shoot.projectNamespace", c.Value)
+			}
+		}
+	}
 }
 
 func getGardenerVersionFromComponentDescriptor(componentDescriptor componentdescriptor.ComponentList) string {
